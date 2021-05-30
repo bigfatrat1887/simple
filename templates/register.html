@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>Simple Example</title>
+</head>
+<body>
+<form id="registerForm">
+  <h1>Register</h1>
+  <p id="registerStatus"></p>
+  <label for="emailInput">
+    E-Mail
+    <input id="emailInput" name="email"  placeholder="E-Mail" type="email">
+  </label>
+  <label for="passwordInput1">
+    Enter Password
+    <input id="passwordInput1" name="password1" placeholder="Password" type="password">
+  </label>
+  <label for="passwordInput2">
+    Submit Password
+    <input id="passwordInput2" name="password2" placeholder="Password" type="password">
+  </label>
+  <input id="registerSubmit" type="submit" value="Submit">
+</form>
+</body>
+<script>
+  const registerSubmit = document.getElementById("registerSubmit");
+  registerSubmit.onclick = (ev) => {
+    ev.preventDefault();
+    const registerForm = document.getElementById("registerForm");
+    const data = new FormData(registerForm);
+    // convert formdata to json
+    let object = {}
+    data.forEach((value, key) => object[key] = value)
+
+    // send data to the backend route
+    fetch("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(object)
+    }).then((response) => response.json())
+      .then((data) => {
+        const status = document.getElementById("registerStatus");
+        status.innerText = data.detail;
+      })
+      .catch((err) => {
+        console.log("Error: ", err)
+      })
+  }
+</script>
+</html>
