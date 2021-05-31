@@ -1,83 +1,108 @@
-import uuid
-
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, UUID4
-from fastapi_login import LoginManager
-from fastapi_login.exceptions import InvalidCredentialsException
-import re
-
-regex = '^(\w|\.|\_|\-)+[@](\w|\_|\-|\.)+[.]\w{2,3}$'
+from data.imports import *
+from data.classes import *
+from data.cparams import *
 
 
-def check(email):
-    if re.search(regex, email):
-        return True
-    else:
-        return False
+class Page:
+    main_page = open("./data/templates/index.html", 'r')
+    register_page = open("./data/templates/register.html", 'r')
+    login_page = open("./data/templates/login.html", 'r')
+    validation_page = open("./data/templates/validation.html", 'r')
 
 
-class UserCreate(BaseModel):
-    email: str
-    password1: str
-    password2: str
+schema = PasswordValidator()
+schema.min(8).max(100)\
+    .has().uppercase().has().lowercase()\
+    .has().digits().has().no().spaces()
 
-
-class User(UserCreate):
-    id: UUID4
-
-
-TOKEN_URL = "/auth/token"
-DB = {
-    "users": {}
-}
 app = FastAPI()
-manager = LoginManager('very_secret',TOKEN_URL)
+manager = LoginManager(SECRET, TOKEN_URL)
+pages = Page
+confirmation_tool = itsdangerous.URLSafeTimedSerializer(SECRET)
+# Somehow wrap this up
 
 
-@manager.user_loader
-def get_user(email: str):
-    return DB["users"].get(email)
+@app.get("/")
+async def index():
+    return HTMLResponse(content=pages.main_page.read())
 
 
 @app.get("/log")
-def index():
-    with open("./templates/login.html", 'r') as l:
-        return HTMLResponse(content=l.read())
+async def index():
+    return HTMLResponse(content=pages.login_page.read())
 
 
 @app.get("/reg")
-def index():
-    with open("./templates/register.html", 'r') as r:
-        return HTMLResponse(content=r.read())
+async def index():
+    return HTMLResponse(content=pages.register_page.read())
+
+
+@app.get("/reg/validate")
+async def index():
+    return HTMLResponse(content=pages.validation_page.read())
+
+
+@manager.user_loader
+async def get_user(email: str):
+    return DB["users"].get(email)
 
 
 @app.post("/auth/register")
-def register(user: UserCreate):
+async def register(user: UserCheck):
     if user.email in DB["users"]:
-        raise HTTPException(status_code=400, detail="A user with this email already exists")
+        raise HTTPException(status_code=400, detail="This email already exists")
+    if not schema.validate(user.password1):
+        raise HTTPException(status_code=400, detail="The password is too weak")
     if user.password1 != user.password2:
         raise HTTPException(status_code=400, detail="The passwords differ")
-    if not re.search(regex, user.email):
-        raise HTTPException(status_code=400, detail="Invalid email format")
+    if not validate_email(user.email, verify=True):
+        raise HTTPException(status_code=400, detail="Invalid email")
     else:
         db_user = User(**user.dict(), id=uuid.uuid4())
         DB["users"][db_user.email] = db_user
-        return {"detail": "Successfull registered"}
+        return {"detail": "Success"}
+
+
+@app.post("/auth/validate")
+async def validate(user: UserCheck):
+    # FINISH
+    code = None
+    sender = await MIMEMultipart('alternative')
+    sender['Subject'] = "Email Validation"
+    sender['From'] = email_from
+    sender['To'] = user.email
+    html = f"""\
+        <html>
+          <head></head>
+          <body>
+            <p>Hi!<br>
+               How are you?<br>
+               Here is the {code} you wanted.
+            </p>
+          </body>
+        </html>
+        """
+    part2 = await MIMEText(html, 'html')
+    sender.attach(part2)
+    step = await smtplib.SMTP_SSL('smtp.yandex.ru', 465)
+    step.sendmail(email_from, user.email, sender.as_string())
+    step.quit()
+    pass
+
+
 
 
 @app.post(TOKEN_URL)
-def login(data: OAuth2PasswordRequestForm = Depends()):
+async def login(data: OAuth2PasswordRequestForm = Depends()):
     email = data.username
     password = data.password
-    user = get_user(email)
+    user = await get_user(email)
     if not user:
         raise InvalidCredentialsException
     elif password != user.password1:
         raise InvalidCredentialsException
 
-    access_token = manager.create_access_token(
+    access_token = await manager.create_access_token(
         data=dict(sub=email)
     )
     return {'access_token': access_token, 'token_type': 'bearer'}
@@ -90,5 +115,4 @@ def private_route(user=Depends(manager)):
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("app:app")

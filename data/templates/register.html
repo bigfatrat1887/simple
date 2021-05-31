@@ -40,7 +40,16 @@
     }).then((response) => response.json())
       .then((data) => {
         const status = document.getElementById("registerStatus");
-        status.innerText = data.detail;
+        if (data.detail == 'Success'){
+        //  fetch("/auth/validate", {
+        //      method: "POST",
+        //      body: JSON.stringify(object)
+        //   }).then(
+        //   result => window.location.href = "/reg/validate");
+          status.innerText = data.detail;
+        } else {
+          status.innerText = data.detail;
+          }
       })
       .catch((err) => {
         console.log("Error: ", err)
