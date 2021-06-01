@@ -7,19 +7,18 @@
 <body>
 <form id="valForm">
   <p id="valStatus"></p>
-  <label for="val">
+  <label for="val_code">
     Validation
-    <input id="val" name="val">
+    <input id="val_code" name="val_code">
     <input id="valSubmit" type="submit" value="Submit">
   </label>
 </form>
 </body>
 <script>
-  const registerSubmit = document.getElementById("valSubmit");
-  registerSubmit.onclick = (ev) => {
-    ev.preventDefault();
-    const registerForm = document.getElementById("valForm");
-    const data = new FormData(valForm);
+  const validationSubmit = document.getElementById("valSubmit");
+  validationSubmit.onclick = (event) => {
+    event.preventDefault();
+    const data = new FormData(document.getElementById("valForm"));
     // convert formdata to json
     let object = {}
     data.forEach((value, key) => object[key] = value)

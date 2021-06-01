@@ -1,17 +1,18 @@
 from pydantic import BaseModel, UUID4
 from typing import Optional
+from random import randint
 
 
-class UserCreate(BaseModel):
+class UserBase(BaseModel):
     email: str
     password1: str
-    code: Optional[int] = None
+    code: Optional[int] = randint(100000, 999999)
 
 
-class User(UserCreate):
+class User(UserBase):
     id: UUID4
 
 
-class UserCheck(UserCreate):
+class UserRegister(UserBase):
     password2: str
 

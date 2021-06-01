@@ -8,6 +8,6 @@ DB = {
     "users": {}
 }
 
-email_from = ""
+email_from = "sweedyolo420@gmail.com"
 
-password_email = ""
+password_email = "weedweed"

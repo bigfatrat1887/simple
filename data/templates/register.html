@@ -34,19 +34,18 @@
     data.forEach((value, key) => object[key] = value)
 
     // send data to the backend route
-    fetch("/auth/register", {
+    fetch("/register", {
       method: "POST",
       body: JSON.stringify(object)
     }).then((response) => response.json())
       .then((data) => {
         const status = document.getElementById("registerStatus");
         if (data.detail == 'Success'){
-        //  fetch("/auth/validate", {
-        //      method: "POST",
-        //      body: JSON.stringify(object)
-        //   }).then(
-        //   result => window.location.href = "/reg/validate");
-          status.innerText = data.detail;
+          fetch("/validate", {
+              method: "POST",
+              body: JSON.stringify(object)
+          }).then(
+            result => window.location.href = "/reg/validate");
         } else {
           status.innerText = data.detail;
           }

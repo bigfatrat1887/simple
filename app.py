@@ -3,6 +3,7 @@ from data.classes import *
 from data.cparams import *
 
 
+# Try to use templates instead raw files
 class Page:
     main_page = open("./data/templates/index.html", 'r')
     register_page = open("./data/templates/register.html", 'r')
@@ -18,8 +19,6 @@ schema.min(8).max(100)\
 app = FastAPI()
 manager = LoginManager(SECRET, TOKEN_URL)
 pages = Page
-confirmation_tool = itsdangerous.URLSafeTimedSerializer(SECRET)
-# Somehow wrap this up
 
 
 @app.get("/")
@@ -28,18 +27,18 @@ async def index():
 
 
 @app.get("/log")
-async def index():
+async def index(request: Request):
     return HTMLResponse(content=pages.login_page.read())
 
 
 @app.get("/reg")
-async def index():
+async def index(request: Request):
     return HTMLResponse(content=pages.register_page.read())
 
 
 @app.get("/reg/validate")
 async def index():
-    return HTMLResponse(content=pages.validation_page.read())
+    pass
 
 
 @manager.user_loader
@@ -47,8 +46,8 @@ async def get_user(email: str):
     return DB["users"].get(email)
 
 
-@app.post("/auth/register")
-async def register(user: UserCheck):
+@app.post("/register")
+async def register(user: UserRegister):
     if user.email in DB["users"]:
         raise HTTPException(status_code=400, detail="This email already exists")
     if not schema.validate(user.password1):
@@ -60,38 +59,37 @@ async def register(user: UserCheck):
     else:
         db_user = User(**user.dict(), id=uuid.uuid4())
         DB["users"][db_user.email] = db_user
+        await validate(db_user)
         return {"detail": "Success"}
 
 
-@app.post("/auth/validate")
-async def validate(user: UserCheck):
-    # FINISH
-    code = None
-    sender = await MIMEMultipart('alternative')
+@app.post("/validate")
+async def validate(user: UserRegister):
+    sender = MIMEMultipart('alternative')
     sender['Subject'] = "Email Validation"
     sender['From'] = email_from
     sender['To'] = user.email
     html = f"""\
-        <html>
-          <head></head>
-          <body>
-            <p>Hi!<br>
-               How are you?<br>
-               Here is the {code} you wanted.
-            </p>
-          </body>
-        </html>
-        """
-    part2 = await MIMEText(html, 'html')
-    sender.attach(part2)
-    step = await smtplib.SMTP_SSL('smtp.yandex.ru', 465)
-    step.sendmail(email_from, user.email, sender.as_string())
-    step.quit()
-    pass
+            <html>
+              <head></head>
+              <body>
+                <p>Hi!<br>
+                   How are you?<br>
+                   Here is the {user.code} you wanted.
+                </p>
+              </body>
+            </html>
+            """
+    sender.attach(MIMEText(html, 'html'))
+    smtp = aiosmtplib.SMTP(hostname='smtp.gmail.com', port=25, use_tls=False)
+    await smtp.connect()
+    await smtp.starttls()
+    await smtp.login(email_from, password_email)
+    await smtp.send_message(sender)
+    await smtp.quit()
 
 
-
-
+# Think about validating and hashing password
 @app.post(TOKEN_URL)
 async def login(data: OAuth2PasswordRequestForm = Depends()):
     email = data.username
